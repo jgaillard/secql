@@ -5,7 +5,7 @@ from typing import List
 
 import httpx
 
-from secql_api.models import Company, Financial
+from secql_api.models import Company, Financial, Filing
 from secql_api.exceptions import CompanyNotFound, RateLimited
 from secql_api.config import settings
 
@@ -99,6 +99,43 @@ class SECClient:
         )
 
         return financials
+
+    def get_filings(self, ticker: str, limit: int = 20) -> List[Filing]:
+        """Fetch recent filings from SEC."""
+        cik = self._get_cik(ticker)
+
+        url = f"{self.BASE_URL}/submissions/CIK{cik}.json"
+        response = httpx.get(url, headers=self.headers, timeout=30.0)
+
+        if response.status_code == 404:
+            raise CompanyNotFound(ticker)
+        if response.status_code == 429:
+            raise RateLimited()
+        response.raise_for_status()
+
+        data = response.json()
+        recent = data.get("filings", {}).get("recent", {})
+
+        filings = []
+        form_types = recent.get("form", [])
+        filing_dates = recent.get("filingDate", [])
+        accession_numbers = recent.get("accessionNumber", [])
+        primary_docs = recent.get("primaryDocument", [])
+
+        for i in range(min(limit, len(form_types))):
+            accession = accession_numbers[i].replace("-", "")
+            doc = primary_docs[i]
+
+            filings.append(Filing(
+                cik=cik,
+                ticker=ticker.upper(),
+                form_type=form_types[i],
+                filed_at=filing_dates[i],
+                accession_number=accession_numbers[i],
+                url=f"https://www.sec.gov/Archives/edgar/data/{cik.lstrip('0')}/{accession}/{doc}",
+            ))
+
+        return filings
 
     def _extract_financials(
         self,

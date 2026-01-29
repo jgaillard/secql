@@ -43,3 +43,22 @@ def test_get_financials_with_history(sec_client):
     """Test fetching multiple periods of financial data."""
     financials = sec_client.get_financials("AAPL", periods=8)
     assert len(financials) >= 4  # At least 4 quarters available
+
+
+def test_get_filings(sec_client):
+    """Test fetching Apple's recent filings."""
+    filings = sec_client.get_filings("AAPL", limit=10)
+    assert len(filings) > 0
+    assert len(filings) <= 10
+
+    filing = filings[0]
+    assert filing.ticker == "AAPL"
+    assert filing.form_type  # Has a form type
+    assert filing.url.startswith("https://")
+
+    # Verify common filing types exist in a larger sample
+    filings_50 = sec_client.get_filings("AAPL", limit=50)
+    form_types = {f.form_type for f in filings_50}
+    # Apple should have at least one of these common filing types
+    common_types = {"10-K", "10-Q", "8-K", "4", "DEF 14A"}
+    assert form_types & common_types, f"Expected at least one common filing type, got: {form_types}"
