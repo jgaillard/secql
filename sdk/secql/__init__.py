@@ -1,4 +1,4 @@
-from secql.client import SecQL
+from secql.client import SecQL, AsyncSecQL
 from secql.models import Company, Financial, Filing
 from secql.exceptions import (
     SecQLError,
@@ -11,6 +11,7 @@ from secql.exceptions import (
 __version__ = "0.1.0"
 __all__ = [
     "SecQL",
+    "AsyncSecQL",
     "Company",
     "Financial",
     "Filing",
