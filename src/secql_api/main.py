@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from secql_api.routes.companies import router as companies_router
+from secql_api.routes.keys import router as keys_router
 from secql_api.auth import APIKeyMiddleware
 from secql_api.rate_limit import RateLimitMiddleware
 
@@ -14,6 +15,7 @@ app = FastAPI(
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(APIKeyMiddleware)
 app.include_router(companies_router)
+app.include_router(keys_router)
 
 
 @app.get("/health")

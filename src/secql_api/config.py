@@ -9,5 +9,8 @@ class Settings(BaseSettings):
     supabase_key: str = ""
     sec_user_agent: str = "SecQL API contact@secql.dev"
 
+    # For local testing only
+    secql_test_api_key: str = ""
+
 
 settings = Settings()

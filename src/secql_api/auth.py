@@ -1,19 +1,14 @@
 """API Key authentication middleware for SecQL API."""
-import os
+import time
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# For MVP: simple static key validation
-# TODO: Replace with Supabase API key lookup
-VALID_API_KEYS = {
-    os.environ.get("SECQL_TEST_API_KEY", "test_key_12345"),
-    os.environ.get("SECQL_API_KEY", ""),
-}
+from secql_api.db import Database
 
 # Endpoints that don't require authentication
-PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
+PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/keys"}
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -37,7 +32,10 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        if api_key not in VALID_API_KEYS or api_key == "":
+        # Validate against Supabase
+        key_info = Database.validate_api_key(api_key)
+
+        if key_info is None:
             return JSONResponse(
                 status_code=401,
                 content={
@@ -50,6 +48,26 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 },
             )
 
-        # TODO: Track usage for billing
+        # Store key info in request state for rate limiting and usage tracking
+        request.state.api_key_id = key_info.id
+        request.state.api_key_tier = key_info.tier
+        request.state.requests_per_minute = key_info.requests_per_minute
+        request.state.request_start = time.time()
+
         response = await call_next(request)
+
+        # Record usage asynchronously (non-blocking)
+        try:
+            response_time_ms = int((time.time() - request.state.request_start) * 1000)
+            ticker = request.path_params.get("ticker") if hasattr(request, "path_params") else None
+            Database.record_usage(
+                api_key_id=key_info.id,
+                endpoint=request.url.path,
+                ticker=ticker,
+                status_code=response.status_code,
+                response_time_ms=response_time_ms,
+            )
+        except Exception:
+            pass  # Don't fail the request if usage tracking fails
+
         return response
