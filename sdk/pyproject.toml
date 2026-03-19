@@ -1,8 +1,26 @@
 [project]
 name = "secql"
 version = "0.1.0"
-description = "Python SDK for SecQL - SEC EDGAR API with excellent DX"
+description = "Python SDK for SecQL — clean SEC EDGAR financial data API"
 requires-python = ">=3.9"
+license = "MIT"
+readme = "README.md"
+authors = [
+    { name = "Julien Gaillard", email = "contact@secql.dev" },
+]
+keywords = ["sec", "edgar", "financial", "api", "sdk", "stocks", "fintech"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "httpx>=0.26.0",
     "pydantic>=2.5.0",
@@ -15,6 +33,12 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pandas>=2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://secql-site.vercel.app"
+Documentation = "https://secql-site.vercel.app"
+Repository = "https://github.com/jgaillard/secql"
+Issues = "https://github.com/jgaillard/secql/issues"
 
 [build-system]
 requires = ["hatchling"]
