@@ -13,7 +13,7 @@ from secql.exceptions import (
 class SecQL:
     """SecQL Python SDK client."""
 
-    DEFAULT_BASE_URL = "https://secql-production.up.railway.app"
+    DEFAULT_BASE_URL = "https://api.secql.dev"
 
     def __init__(
         self,
@@ -134,7 +134,7 @@ class SecQL:
 class AsyncSecQL:
     """Async SecQL Python SDK client."""
 
-    DEFAULT_BASE_URL = "https://secql-production.up.railway.app"
+    DEFAULT_BASE_URL = "https://api.secql.dev"
 
     def __init__(
         self,

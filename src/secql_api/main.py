@@ -72,6 +72,6 @@ def root():
     return {
         "name": "SecQL API",
         "version": "0.1.0",
-        "docs": "https://secql-site.vercel.app",
+        "docs": "https://secql.dev",
         "health": "/health",
     }
