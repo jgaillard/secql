@@ -53,7 +53,7 @@ rate_limiter = RateLimiter(default_requests_per_minute=100)
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Skip rate limiting for public endpoints
-        if request.url.path in {"/health", "/docs", "/openapi.json", "/redoc", "/keys"}:
+        if request.url.path in {"/", "/health", "/docs", "/openapi.json", "/redoc", "/keys"}:
             return await call_next(request)
 
         # Get API key and per-key rate limit from auth middleware

@@ -11,7 +11,7 @@ from secql_api.db import Database
 logger = logging.getLogger("secql.auth")
 
 # Endpoints that don't require authentication
-PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/keys"}
+PUBLIC_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc", "/keys"}
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
