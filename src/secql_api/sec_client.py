@@ -1,5 +1,7 @@
 """SEC EDGAR client for fetching company information and financial data."""
+import logging
 import re
+import time
 from datetime import datetime
 from typing import List
 
@@ -8,6 +10,11 @@ import httpx
 from secql_api.models import Company, Financial, Filing
 from secql_api.exceptions import CompanyNotFound, RateLimited
 from secql_api.config import settings
+
+logger = logging.getLogger("secql.sec_client")
+
+MAX_RETRIES = 2
+RETRY_BACKOFF = [1.0, 3.0]  # seconds
 
 
 class SECClient:
@@ -22,13 +29,42 @@ class SECClient:
         }
         self._ticker_to_cik: dict[str, str] = {}
 
+    def _fetch(self, url: str) -> httpx.Response:
+        """Fetch URL from SEC with retry and backoff."""
+        last_exc = None
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                response = httpx.get(url, headers=self.headers, timeout=30.0)
+                if response.status_code == 429:
+                    if attempt < MAX_RETRIES:
+                        wait = RETRY_BACKOFF[attempt]
+                        logger.warning("SEC 429 on attempt %d, retrying in %.1fs: %s", attempt + 1, wait, url)
+                        time.sleep(wait)
+                        continue
+                    raise RateLimited()
+                if response.status_code >= 500 and attempt < MAX_RETRIES:
+                    wait = RETRY_BACKOFF[attempt]
+                    logger.warning("SEC %d on attempt %d, retrying in %.1fs: %s", response.status_code, attempt + 1, wait, url)
+                    time.sleep(wait)
+                    continue
+                return response
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
+                last_exc = e
+                if attempt < MAX_RETRIES:
+                    wait = RETRY_BACKOFF[attempt]
+                    logger.warning("SEC network error on attempt %d, retrying in %.1fs: %s", attempt + 1, wait, e)
+                    time.sleep(wait)
+                    continue
+                raise
+        raise last_exc  # type: ignore
+
     def _load_ticker_mapping(self) -> None:
         """Load ticker to CIK mapping from SEC."""
         if self._ticker_to_cik:
             return
 
         url = "https://www.sec.gov/files/company_tickers.json"
-        response = httpx.get(url, headers=self.headers, timeout=30.0)
+        response = self._fetch(url)
         response.raise_for_status()
 
         data = response.json()
@@ -50,12 +86,10 @@ class SECClient:
         cik = self._get_cik(ticker)
 
         url = f"{self.BASE_URL}/submissions/CIK{cik}.json"
-        response = httpx.get(url, headers=self.headers, timeout=30.0)
+        response = self._fetch(url)
 
         if response.status_code == 404:
             raise CompanyNotFound(ticker)
-        if response.status_code == 429:
-            raise RateLimited()
         response.raise_for_status()
 
         data = response.json()
@@ -77,12 +111,10 @@ class SECClient:
         cik = self._get_cik(ticker)
 
         url = f"{self.BASE_URL}/api/xbrl/companyfacts/CIK{cik}.json"
-        response = httpx.get(url, headers=self.headers, timeout=30.0)
+        response = self._fetch(url)
 
         if response.status_code == 404:
             raise CompanyNotFound(ticker)
-        if response.status_code == 429:
-            raise RateLimited()
         response.raise_for_status()
 
         data = response.json()
@@ -105,12 +137,10 @@ class SECClient:
         cik = self._get_cik(ticker)
 
         url = f"{self.BASE_URL}/submissions/CIK{cik}.json"
-        response = httpx.get(url, headers=self.headers, timeout=30.0)
+        response = self._fetch(url)
 
         if response.status_code == 404:
             raise CompanyNotFound(ticker)
-        if response.status_code == 429:
-            raise RateLimited()
         response.raise_for_status()
 
         data = response.json()

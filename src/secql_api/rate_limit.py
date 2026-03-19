@@ -25,10 +25,16 @@ class RateLimiter:
         rpm = requests_per_minute or self.default_rpm
 
         with self._lock:
-            # Clean old requests
+            # Clean old requests for this key
             self._requests[key] = [
                 t for t in self._requests[key] if t > window_start
             ]
+
+            # Periodic cleanup: purge keys with no recent requests
+            if len(self._requests) > 1000:
+                stale = [k for k, v in self._requests.items() if not v]
+                for k in stale:
+                    del self._requests[k]
 
             count = len(self._requests[key])
             remaining = max(0, rpm - count - 1)

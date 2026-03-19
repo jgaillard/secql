@@ -1,4 +1,5 @@
 """API Key authentication middleware for SecQL API."""
+import logging
 import time
 
 from fastapi import Request
@@ -6,6 +7,8 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from secql_api.db import Database
+
+logger = logging.getLogger("secql.auth")
 
 # Endpoints that don't require authentication
 PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/keys"}
@@ -67,7 +70,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 status_code=response.status_code,
                 response_time_ms=response_time_ms,
             )
-        except Exception:
-            pass  # Don't fail the request if usage tracking fails
+        except Exception as e:
+            logger.warning("Usage recording failed for key=%s: %s", key_info.id, e)
 
         return response

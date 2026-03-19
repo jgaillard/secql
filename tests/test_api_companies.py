@@ -21,10 +21,19 @@ def test_get_company():
 
 
 def test_get_company_not_found():
-    response = client.get("/companies/INVALIDTICKER123", headers=AUTH_HEADERS)
+    response = client.get("/companies/ZZZZZ", headers=AUTH_HEADERS)
     assert response.status_code == 404
 
     data = response.json()
     detail = data["detail"]
     assert detail["error"] == "company_not_found"
     assert "hint" in detail
+
+
+def test_get_company_invalid_ticker():
+    response = client.get("/companies/INVALIDTICKER123", headers=AUTH_HEADERS)
+    assert response.status_code == 400
+
+    data = response.json()
+    detail = data["detail"]
+    assert detail["error"] == "invalid_ticker"

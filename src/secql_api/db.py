@@ -1,11 +1,14 @@
 # src/secql_api/db.py
 """Supabase database client for API key management."""
+import logging
 from typing import Optional
 from dataclasses import dataclass
 
 from supabase import create_client, Client
 
 from secql_api.config import settings
+
+logger = logging.getLogger("secql.db")
 
 
 @dataclass
@@ -49,9 +52,8 @@ class Database:
                     tier=row["tier"],
                     requests_per_minute=row["requests_per_minute"],
                 )
-        except Exception:
-            # If Supabase is not configured, fall back to test key only
-            pass
+        except Exception as e:
+            logger.error("API key validation failed: %s", e)
 
         return None
 
@@ -81,9 +83,8 @@ class Database:
                     "p_response_time_ms": response_time_ms,
                 },
             ).execute()
-        except Exception:
-            # Don't fail requests if usage tracking fails
-            pass
+        except Exception as e:
+            logger.warning("Usage recording failed for key=%s: %s", api_key_id, e)
 
     @classmethod
     def create_api_key(cls, name: str, email: str) -> tuple[str, str]:
