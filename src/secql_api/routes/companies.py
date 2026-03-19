@@ -49,7 +49,7 @@ async def get_financials(ticker: str):
 async def get_financials_history(ticker: str, periods: int = 10):
     """Get historical financial data for a company."""
     ticker = validate_ticker(ticker)
-    periods = min(periods, 40)
+    periods = min(periods, 80)
     return await sec_client.get_financials(ticker, periods=periods)
 
 
