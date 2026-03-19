@@ -1,7 +1,7 @@
 """SEC EDGAR client for fetching company information and financial data."""
+import asyncio
 import logging
 import re
-import time
 from datetime import datetime
 from typing import List
 
@@ -29,23 +29,24 @@ class SECClient:
         }
         self._ticker_to_cik: dict[str, str] = {}
 
-    def _fetch(self, url: str) -> httpx.Response:
+    async def _fetch(self, url: str) -> httpx.Response:
         """Fetch URL from SEC with retry and backoff."""
         last_exc = None
         for attempt in range(MAX_RETRIES + 1):
             try:
-                response = httpx.get(url, headers=self.headers, timeout=30.0)
+                async with httpx.AsyncClient(headers=self.headers, timeout=30.0) as client:
+                    response = await client.get(url)
                 if response.status_code == 429:
                     if attempt < MAX_RETRIES:
                         wait = RETRY_BACKOFF[attempt]
                         logger.warning("SEC 429 on attempt %d, retrying in %.1fs: %s", attempt + 1, wait, url)
-                        time.sleep(wait)
+                        await asyncio.sleep(wait)
                         continue
                     raise RateLimited()
                 if response.status_code >= 500 and attempt < MAX_RETRIES:
                     wait = RETRY_BACKOFF[attempt]
                     logger.warning("SEC %d on attempt %d, retrying in %.1fs: %s", response.status_code, attempt + 1, wait, url)
-                    time.sleep(wait)
+                    await asyncio.sleep(wait)
                     continue
                 return response
             except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as e:
@@ -53,18 +54,18 @@ class SECClient:
                 if attempt < MAX_RETRIES:
                     wait = RETRY_BACKOFF[attempt]
                     logger.warning("SEC network error on attempt %d, retrying in %.1fs: %s", attempt + 1, wait, e)
-                    time.sleep(wait)
+                    await asyncio.sleep(wait)
                     continue
                 raise
         raise last_exc  # type: ignore
 
-    def _load_ticker_mapping(self) -> None:
+    async def _load_ticker_mapping(self) -> None:
         """Load ticker to CIK mapping from SEC."""
         if self._ticker_to_cik:
             return
 
         url = "https://www.sec.gov/files/company_tickers.json"
-        response = self._fetch(url)
+        response = await self._fetch(url)
         response.raise_for_status()
 
         data = response.json()
@@ -73,20 +74,20 @@ class SECClient:
             cik = str(entry["cik_str"]).zfill(10)
             self._ticker_to_cik[ticker] = cik
 
-    def _get_cik(self, ticker: str) -> str:
+    async def _get_cik(self, ticker: str) -> str:
         """Get CIK for a ticker."""
-        self._load_ticker_mapping()
+        await self._load_ticker_mapping()
         ticker = ticker.upper()
         if ticker not in self._ticker_to_cik:
             raise CompanyNotFound(ticker)
         return self._ticker_to_cik[ticker]
 
-    def get_company(self, ticker: str) -> Company:
+    async def get_company(self, ticker: str) -> Company:
         """Fetch company info from SEC."""
-        cik = self._get_cik(ticker)
+        cik = await self._get_cik(ticker)
 
         url = f"{self.BASE_URL}/submissions/CIK{cik}.json"
-        response = self._fetch(url)
+        response = await self._fetch(url)
 
         if response.status_code == 404:
             raise CompanyNotFound(ticker)
@@ -106,12 +107,12 @@ class SECClient:
             exchange=exchange,
         )
 
-    def get_financials(self, ticker: str, periods: int = 1) -> List[Financial]:
+    async def get_financials(self, ticker: str, periods: int = 1) -> List[Financial]:
         """Fetch financial data from SEC XBRL API."""
-        cik = self._get_cik(ticker)
+        cik = await self._get_cik(ticker)
 
         url = f"{self.BASE_URL}/api/xbrl/companyfacts/CIK{cik}.json"
-        response = self._fetch(url)
+        response = await self._fetch(url)
 
         if response.status_code == 404:
             raise CompanyNotFound(ticker)
@@ -132,12 +133,12 @@ class SECClient:
 
         return financials
 
-    def get_filings(self, ticker: str, limit: int = 20) -> List[Filing]:
+    async def get_filings(self, ticker: str, limit: int = 20) -> List[Filing]:
         """Fetch recent filings from SEC."""
-        cik = self._get_cik(ticker)
+        cik = await self._get_cik(ticker)
 
         url = f"{self.BASE_URL}/submissions/CIK{cik}.json"
-        response = self._fetch(url)
+        response = await self._fetch(url)
 
         if response.status_code == 404:
             raise CompanyNotFound(ticker)

@@ -64,7 +64,17 @@ def create_api_key(body: CreateKeyRequest, request: Request):
     _check_key_creation_rate(client_ip)
 
     logger.info("Creating API key name=%s email=%s ip=%s", body.name, body.email, client_ip)
-    key_id, key = Database.create_api_key(name=body.name, email=body.email)
+    try:
+        key_id, key = Database.create_api_key(name=body.name, email=body.email)
+    except Exception as e:
+        logger.error("API key creation failed: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "key_creation_failed",
+                "message": "Failed to create API key. Please try again.",
+            },
+        )
 
     return CreateKeyResponse(
         id=key_id,

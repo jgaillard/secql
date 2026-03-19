@@ -8,25 +8,28 @@ def sec_client():
     return SECClient()
 
 
-def test_get_company_by_ticker(sec_client):
+@pytest.mark.asyncio
+async def test_get_company_by_ticker(sec_client):
     """Test fetching Apple's company info from SEC."""
-    company = sec_client.get_company("AAPL")
+    company = await sec_client.get_company("AAPL")
     assert company is not None
     assert company.ticker == "AAPL"
     assert company.cik == "0000320193"
     assert "Apple" in company.name
 
 
-def test_get_company_not_found(sec_client):
+@pytest.mark.asyncio
+async def test_get_company_not_found(sec_client):
     """Test handling of invalid ticker."""
     from secql_api.exceptions import CompanyNotFound
     with pytest.raises(CompanyNotFound):
-        sec_client.get_company("INVALIDTICKER123")
+        await sec_client.get_company("ZZZZZ")
 
 
-def test_get_financials(sec_client):
+@pytest.mark.asyncio
+async def test_get_financials(sec_client):
     """Test fetching Apple's financial data."""
-    financials = sec_client.get_financials("AAPL", periods=4)
+    financials = await sec_client.get_financials("AAPL", periods=4)
     assert len(financials) > 0
 
     latest = financials[0]
@@ -39,15 +42,17 @@ def test_get_financials(sec_client):
     assert periods_with_revenue[0].revenue > 0
 
 
-def test_get_financials_with_history(sec_client):
+@pytest.mark.asyncio
+async def test_get_financials_with_history(sec_client):
     """Test fetching multiple periods of financial data."""
-    financials = sec_client.get_financials("AAPL", periods=8)
+    financials = await sec_client.get_financials("AAPL", periods=8)
     assert len(financials) >= 4  # At least 4 quarters available
 
 
-def test_get_filings(sec_client):
+@pytest.mark.asyncio
+async def test_get_filings(sec_client):
     """Test fetching Apple's recent filings."""
-    filings = sec_client.get_filings("AAPL", limit=10)
+    filings = await sec_client.get_filings("AAPL", limit=10)
     assert len(filings) > 0
     assert len(filings) <= 10
 
@@ -57,7 +62,7 @@ def test_get_filings(sec_client):
     assert filing.url.startswith("https://")
 
     # Verify common filing types exist in a larger sample
-    filings_50 = sec_client.get_filings("AAPL", limit=50)
+    filings_50 = await sec_client.get_filings("AAPL", limit=50)
     form_types = {f.form_type for f in filings_50}
     # Apple should have at least one of these common filing types
     common_types = {"10-K", "10-Q", "8-K", "4", "DEF 14A"}
